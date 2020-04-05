@@ -7,26 +7,41 @@
 //
 
 import UIKit
+import CoreData
 
 class TableViewController: UITableViewController {
 
-    var tasks: [String] = []
+    var tasks: [Task] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
     }
-
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        let context = getTask()
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+//        let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
+//        fetchRequest.sortDescriptors = [sortDescriptor]
+        do {
+            tasks = try context.fetch(fetchRequest)
+        } catch let error as NSError {
+            print(error)
+        }
+    }
+    
     @IBAction func saveTask(_ sender: UIBarButtonItem) {
-        let alertController = UIAlertController(title: "New Task", message: "Please add new task", preferredStyle: .alert)
+        let alertController = UIAlertController(title: "New Task", message: "Please add a new task", preferredStyle: .alert)
         let saveAction = UIAlertAction(title: "Save", style: .default) { action in
             let textField = alertController.textFields?.first
-            if let newTask = textField?.text {
-                self.tasks.insert(newTask, at: 0)
+            if let newTaskTitle = textField?.text {
+                self.saveTask(withTitle: newTaskTitle)
                 self.tableView.reloadData()
             }
         }
-        alertController.addTextField { textField in }
+        alertController.addTextField { _ in }
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { _ in }
         alertController.addAction(saveAction)
         alertController.addAction(cancelAction)
@@ -34,8 +49,47 @@ class TableViewController: UITableViewController {
         present(alertController, animated: true)
     }
     
+    @IBAction func removeAll(_ sender: UIBarButtonItem) {
+//        let context = getTask()
+//        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+//
+//        if let objects = try? context.fetch(fetchRequest) {
+//            for object in objects {
+//                context.delete(object)
+//            }
+//        }
+//
+//        do {
+//            try context.save()
+//        } catch let error as NSError {
+//            print(error)
+//        }
+        
+        tasks = []
+        tableView.reloadData()
+    }
+    
+    private func saveTask(withTitle title: String) {
+        let context = getTask()
+        
+        guard let entity = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
+        
+        let taskObject = Task(entity: entity, insertInto: context)
+        taskObject.title = title
+        do {
+            try context.save()
+            tasks.append(taskObject)
+        } catch let error as NSError {
+            print(error)
+        }
+    }
+    
+    private func getTask() -> NSManagedObjectContext {
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        return appDelegate.persistentContainer.viewContext
+    }
+    
     // MARK: - Table view data source
-
     override func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
@@ -46,8 +100,10 @@ class TableViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
-
-        cell.textLabel?.text = tasks[indexPath.row]
+        
+        let task = tasks[indexPath.row]
+        
+        cell.textLabel?.text = task.title
 
         return cell
     }
